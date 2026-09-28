@@ -77,4 +77,24 @@ public class AccountService {
     private static String key(String s) {
         return s.toLowerCase(Locale.ROOT);
     }
+
+    public ResultCode login(String username, String password) {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    public ResultCode disableAccount(String username) {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    public ResultCode unlockAccount(String username) {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    public Optional<Account> findByUsername(String username) {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    public boolean isLocked(String username) {
+        throw new UnsupportedOperationException("TODO");
+    }
 }
