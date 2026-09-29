@@ -79,22 +79,64 @@ public class AccountService {
     }
 
     public ResultCode login(String username, String password) {
-        throw new UnsupportedOperationException("TODO");
+        // LOG-01
+        if (isBlank(username) || isBlank(password)) {
+            return ResultCode.INVALID_INPUT;
+        }
+        Account acc = accountsByUsername.get(key(username));
+        // Rule 1: user không tồn tại
+        if (acc == null) {
+            return ResultCode.INVALID_CREDENTIALS;   // KHÔNG được lộ "user không tồn tại" vs "sai mật khẩu"
+        }
+        // Rule 2: DISABLED
+        if (acc.getStatus() == AccountStatus.DISABLED) {
+            return ResultCode.ACCOUNT_DISABLED;
+        }
+        // Rule 3: đang khóa -> trả ACCOUNT_LOCKED NGAY, không tăng bộ đếm, không kiểm tra mật khẩu nữa
+        if (acc.isLocked()) {
+            return ResultCode.ACCOUNT_LOCKED;
+        }
+        // Kiểm tra mật khẩu
+        if (!PasswordHasher.matches(acc.getSalt(), password, acc.getCurrentPasswordHash())) {
+            // Rule 4 / Rule 5
+            acc.incrementFailedAttempts();
+            if (acc.getFailedAttempts() >= MAX_FAILED_ATTEMPTS) {
+                acc.lock();
+                return ResultCode.ACCOUNT_LOCKED;
+            }
+            return ResultCode.INVALID_CREDENTIALS;
+        }
+        // Rule 6: thành công
+        acc.resetFailedAttempts();
+        return ResultCode.SUCCESS;
     }
 
     public ResultCode disableAccount(String username) {
-        throw new UnsupportedOperationException("TODO");
+        Optional<Account> acc = findByUsername(username);
+        if (acc.isEmpty()) {
+            return ResultCode.USER_NOT_FOUND;
+        }
+        acc.get().setStatus(AccountStatus.DISABLED);
+        return ResultCode.SUCCESS;
     }
 
     public ResultCode unlockAccount(String username) {
-        throw new UnsupportedOperationException("TODO");
+        Optional<Account> acc = findByUsername(username);
+        if (acc.isEmpty()) {
+            return ResultCode.USER_NOT_FOUND;
+        }
+        acc.get().unlock();   // locked = false VÀ failedAttempts = 0 (nhớ lại TODO-3)
+        return ResultCode.SUCCESS;
     }
 
     public Optional<Account> findByUsername(String username) {
-        throw new UnsupportedOperationException("TODO");
+        if (isBlank(username)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(accountsByUsername.get(key(username)));
     }
 
     public boolean isLocked(String username) {
-        throw new UnsupportedOperationException("TODO");
+        return findByUsername(username).map(Account::isLocked).orElse(false);
     }
 }
