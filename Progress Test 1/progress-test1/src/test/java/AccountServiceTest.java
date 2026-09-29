@@ -141,4 +141,105 @@ class AccountServiceTest {
                         USER, EMAIL, "weak", "khac", DOB, PHONE, ResultCode.WEAK_PASSWORD)
         );
     }
+
+    @Nested
+    class Login {
+
+        @BeforeEach
+        void registerDefaultAccount() {
+            service.register(USER, EMAIL, PASS, PASS, DOB, PHONE);
+        }
+
+        @Test
+        void login_UserNotExist_ReturnsInvalidCredentials() {
+            assertEquals(ResultCode.INVALID_CREDENTIALS, service.login("nobody", PASS));
+        }
+
+        @Test
+        void login_DisabledAccount_ReturnsAccountDisabled() {
+            service.disableAccount(USER);
+            assertEquals(ResultCode.ACCOUNT_DISABLED, service.login(USER, PASS));
+        }
+
+        @Test
+        void login_UserNotExist_And_WrongPassword_ReturnSameCode() {
+            ResultCode notExist = service.login("nobody", PASS);
+            ResultCode wrongPass = service.login(USER, "WrongPass@123");
+            assertEquals(notExist, wrongPass); // cả 2 đều INVALID_CREDENTIALS, không lộ thông tin username có tồn tại hay không
+        }
+
+        @Test
+        void login_LockedAccount_CorrectPassword_StillReturnsAccountLocked() {
+            lockAccountByFailedAttempts(); // helper bên dưới, sai đủ 5 lần để khóa
+            ResultCode result = service.login(USER, PASS); // mật khẩu ĐÚNG
+            assertEquals(ResultCode.ACCOUNT_LOCKED, result);
+        }
+
+        @Test
+        void login_LockedAccount_AttemptsDoNotIncreaseFurtherWhenAlreadyLocked() {
+            lockAccountByFailedAttempts();
+            int attemptsAfterLock = service.findByUsername(USER).orElseThrow().getFailedAttempts();
+
+            service.login(USER, "AnotherWrong@1"); // thử thêm 1 lần nữa khi đã khóa
+            int attemptsAfterExtraTry = service.findByUsername(USER).orElseThrow().getFailedAttempts();
+
+            assertEquals(attemptsAfterLock, attemptsAfterExtraTry); // bộ đếm KHÔNG đổi
+        }
+
+        private void lockAccountByFailedAttempts() {
+            for (int i = 0; i < AccountService.MAX_FAILED_ATTEMPTS; i++) {
+                service.login(USER, "WrongPass@" + i);
+            }
+        }
+
+        @Test
+        void login_FourFailedAttempts_StillInvalidCredentials_NotLocked() {
+            for (int i = 0; i < 4; i++) {
+                assertEquals(ResultCode.INVALID_CREDENTIALS, service.login(USER, "Wrong@" + i));
+            }
+            assertFalse(service.isLocked(USER));
+            assertEquals(4, service.findByUsername(USER).orElseThrow().getFailedAttempts());
+        }
+
+        @Test
+        void login_FifthFailedAttempt_LocksAccount() {
+            for (int i = 0; i < 4; i++) {
+                service.login(USER, "Wrong@" + i);
+            }
+            ResultCode fifthAttempt = service.login(USER, "Wrong@4"); // lần sai thứ 5
+
+            assertEquals(ResultCode.ACCOUNT_LOCKED, fifthAttempt);
+            assertTrue(service.isLocked(USER));
+        }
+
+        @Test
+        void login_CorrectPassword_ReturnsSuccessAndResetsFailedAttempts() {
+            service.login(USER, "Wrong@1");
+            service.login(USER, "Wrong@2"); // sai 2 lần trước
+
+            ResultCode result = service.login(USER, PASS); // rồi đăng nhập đúng
+
+            assertEquals(ResultCode.SUCCESS, result);
+            assertEquals(0, service.findByUsername(USER).orElseThrow().getFailedAttempts());
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" "})
+        void login_UsernameNullEmptyBlank_ReturnsInvalidInput(String username) {
+            assertEquals(ResultCode.INVALID_INPUT, service.login(username, PASS));
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" "})
+        void login_PasswordNullEmptyBlank_ReturnsInvalidInput(String password) {
+            assertEquals(ResultCode.INVALID_INPUT, service.login(USER, password));
+        }
+
+        @Test
+        void login_UsernameDifferentCase_StillWorks() {
+            assertEquals(ResultCode.SUCCESS, service.login("ALICE_01", PASS));
+        }
+    }
 }
