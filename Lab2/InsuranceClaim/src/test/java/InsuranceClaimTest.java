@@ -7,7 +7,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class InsuranceClaimTest {
+class InsuranceClaimTest {
+
     private InsuranceClaim claim;
 
     @BeforeEach
@@ -45,6 +46,7 @@ public class InsuranceClaimTest {
     void processClaim_StatusPending_UpdatesStatus() {
         // Act
         boolean result = claim.processClaim("Approved");
+
         // Assert
         assertTrue(result);
         assertEquals("Approved", claim.getClaimStatus());
@@ -55,8 +57,10 @@ public class InsuranceClaimTest {
     void processClaim_StatusNotPending_ReturnsFalse() {
         // Arrange
         claim.processClaim("Approved");
+
         // Act
         boolean result = claim.processClaim("Rejected");
+
         // Assert
         assertFalse(result);
         assertEquals("Approved", claim.getClaimStatus());
@@ -74,8 +78,10 @@ public class InsuranceClaimTest {
     void calculatePayout_StatusApproved_Returns85Percent() {
         // Arrange
         claim.processClaim("Approved");
+
         // Act
         double payout = claim.calculatePayout();
+
         // Assert
         assertEquals(850.0, payout, 0.001);
     }
@@ -91,6 +97,7 @@ public class InsuranceClaimTest {
     void updateClaimAmount_ValidValue_Updates() {
         // Act
         claim.updateClaimAmount(2000.0);
+
         // Assert
         assertEquals(2000.0, claim.getAmount());
     }
@@ -106,18 +113,18 @@ public class InsuranceClaimTest {
     @CsvSource({
             "Approved, 850.0",
             "Rejected, 0",
-            "Pending, 0"
+            "Pending,  0"
     })
     @DisplayName("Parameterized: calculatePayout cho các trạng thái khác nhau")
-
-    void calculatePayout_VariousStatuses(String status, double
-            expectedPayout) {
+    void calculatePayout_VariousStatuses(String status, double expectedPayout) {
         // Arrange
         if (!"Pending".equals(status)) {
             claim.processClaim(status);
         }
+
         // Act
         double payout = claim.calculatePayout();
+
         // Assert
         assertEquals(expectedPayout, payout, 0.001);
     }
@@ -127,6 +134,7 @@ public class InsuranceClaimTest {
     void toString_ReturnsExpectedFormat() {
         // Act
         String output = claim.toString();
+
         // Assert
         assertAll(
                 () -> assertTrue(output.contains("InsuranceClaim")),
